@@ -29,6 +29,18 @@ def test_authors(db: sqlalchemy.engine.Connection):
     assert len(author_list) == 1
     assert author_list[0] == new_author
 
+    # Test batch insert with copyfrom
+    batch_authors = [
+        {"p1": "Dennis Ritchie", "p2": "Creator of C Programming Language"},
+        {"p1": "Ken Thompson", "p2": "Creator of Unix and Go Programming Language"},
+        {"p1": "Rob Pike", "p2": "Co-creator of Go Programming Language"},
+    ]
+    rows_affected = querier.create_authors_batch(batch_authors)
+    assert rows_affected == 3
+    
+    all_authors = list(querier.list_authors())
+    assert len(all_authors) == 4  # 1 existing + 3 batch inserted
+
 
 @pytest.mark.asyncio
 async def test_authors_async(async_db: sqlalchemy.ext.asyncio.AsyncConnection):
@@ -54,3 +66,17 @@ async def test_authors_async(async_db: sqlalchemy.ext.asyncio.AsyncConnection):
         author_list.append(author)
     assert len(author_list) == 1
     assert author_list[0] == new_author
+
+    # Test batch insert with copyfrom
+    batch_authors = [
+        {"p1": "Dennis Ritchie", "p2": "Creator of C Programming Language"},
+        {"p1": "Ken Thompson", "p2": "Creator of Unix and Go Programming Language"},
+        {"p1": "Rob Pike", "p2": "Co-creator of Go Programming Language"},
+    ]
+    rows_affected = await querier.create_authors_batch(batch_authors)
+    assert rows_affected == 3
+    
+    all_authors = []
+    async for author in querier.list_authors():
+        all_authors.append(author)
+    assert len(all_authors) == 4  # 1 existing + 3 batch inserted

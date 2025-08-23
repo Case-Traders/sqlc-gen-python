@@ -2,6 +2,7 @@
 # versions:
 #   sqlc v1.29.0
 import dataclasses
+import datetime
 from typing import Optional
 
 
@@ -9,4 +10,15 @@ from typing import Optional
 class Author:
     id: int
     name: str
+    bio: str
+
+
+@dataclasses.dataclass()
+class User:
+    id: int
+    email: str
+    name: str
     bio: Optional[str]
+    age: Optional[int]
+    active: Optional[bool]
+    created_at: datetime.datetime

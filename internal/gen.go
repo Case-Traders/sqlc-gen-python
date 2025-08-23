@@ -2,7 +2,7 @@ package python
 
 import (
 	"context"
-	json "encoding/json"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sqlc-dev/plugin-sdk-go/metadata"
 	"github.com/sqlc-dev/plugin-sdk-go/plugin"
 	"github.com/sqlc-dev/plugin-sdk-go/sdk"
 
@@ -135,6 +134,33 @@ type Query struct {
 }
 
 func (q Query) AddArgs(args *pyast.Arguments) {
+	switch q.Cmd {
+	case ":copyfrom":
+		q.addCopyFromArgs(args)
+	default:
+		q.addRegularArgs(args)
+	}
+}
+
+// addCopyFromArgs adds arguments for :copyfrom commands
+func (q Query) addCopyFromArgs(args *pyast.Arguments) {
+	// Check if we have a struct parameter
+	if len(q.Args) == 1 && q.Args[0].IsStruct() {
+		args.Args = append(args.Args, &pyast.Arg{
+			Arg:        q.Args[0].Name + "_list",
+			Annotation: subscriptNode("List", q.Args[0].Annotation()),
+		})
+	} else {
+		// Fall back to List[Any] for individual parameters
+		args.Args = append(args.Args, &pyast.Arg{
+			Arg:        "arg_list",
+			Annotation: subscriptNode("List", poet.Name("Any")),
+		})
+	}
+}
+
+// addRegularArgs adds arguments for regular (non-copyfrom) commands
+func (q Query) addRegularArgs(args *pyast.Arguments) {
 	// A single struct arg does not need to be passed as a keyword argument
 	if len(q.Args) == 1 && q.Args[0].IsStruct() {
 		args.Args = append(args.Args, &pyast.Arg{
@@ -143,6 +169,8 @@ func (q Query) AddArgs(args *pyast.Arguments) {
 		})
 		return
 	}
+
+	// Multiple args or non-struct args are passed as keyword arguments
 	for _, a := range q.Args {
 		args.KwOnlyArgs = append(args.KwOnlyArgs, &pyast.Arg{
 			Arg:        a.Name,
@@ -178,6 +206,79 @@ func (q Query) ArgDictNode() *pyast.Node {
 			Dict: dict,
 		},
 	}
+}
+
+// BuildCopyFromBody generates the method body for :copyfrom commands.
+func (q Query) BuildCopyFromBody(isAsync bool) []*pyast.Node {
+	var body []*pyast.Node
+
+	dataVar := "arg_list"
+	if len(q.Args) == 1 && q.Args[0].IsStruct() {
+		argName := q.Args[0].Name + "_list"
+		dataVar = "data"
+		body = append(body, q.buildStructToDictList(argName, dataVar)...)
+	}
+
+	sqlText := poet.Node(&pyast.Call{
+		Func: poet.Attribute(poet.Name("sqlalchemy"), "text"),
+		Args: []*pyast.Node{poet.Name(q.ConstantName)},
+	})
+
+	execCall := poet.Node(&pyast.Call{
+		Func: poet.Attribute(poet.Name("self._conn"), "executemany"),
+		Args: []*pyast.Node{
+			sqlText,
+			poet.Name(dataVar),
+		},
+	})
+
+	if isAsync {
+		execCall = poet.Await(execCall)
+	}
+
+	body = append(body,
+		assignNode("result", execCall),
+		poet.Return(poet.Attribute(poet.Name("result"), "rowcount")),
+	)
+
+	return body
+}
+
+// buildStructToDictList converts a list of parameter structs to a list of dicts for SQLAlchemy
+func (q Query) buildStructToDictList(sourceVar, targetVar string) []*pyast.Node {
+	var body []*pyast.Node
+
+	body = append(body, assignNode(targetVar, poet.Node(&pyast.Call{
+		Func: poet.Name("list"),
+		Args: []*pyast.Node{},
+	})))
+
+	loopVar := "item"
+	dict := &pyast.Dict{}
+	for i, field := range q.Args[0].Struct.Fields {
+		paramName := fmt.Sprintf("p%v", i+1)
+		dict.Keys = append(dict.Keys, poet.Constant(paramName))
+		dict.Values = append(dict.Values, poet.Attribute(poet.Name(loopVar), field.Name))
+	}
+
+	body = append(body, poet.Node(&pyast.For{
+		Target: poet.Name(loopVar),
+		Iter:   poet.Name(sourceVar),
+		Body: []*pyast.Node{
+			poet.Node(&pyast.Call{
+				Func: poet.Attribute(poet.Name(targetVar), "append"),
+				Args: []*pyast.Node{
+					{
+						Node: &pyast.Node_Dict{
+							Dict: dict,
+						},
+					},
+				},
+			}),
+		},
+	}))
+
+	return body
 }
 
 func makePyType(req *plugin.GenerateRequest, col *plugin.Column) pyType {
@@ -372,9 +473,6 @@ func buildQueries(conf Config, req *plugin.GenerateRequest, structs []Struct) ([
 		if query.Cmd == "" {
 			continue
 		}
-		if query.Cmd == metadata.CmdCopyFrom {
-			return nil, errors.New("Support for CopyFrom in Python is not implemented")
-		}
 
 		methodName := methodName(query.Name)
 
@@ -403,11 +501,13 @@ func buildQueries(conf Config, req *plugin.GenerateRequest, structs []Struct) ([
 					Column: p.Column,
 				})
 			}
-			gq.Args = []QueryValue{{
-				Emit:   true,
-				Name:   "arg",
-				Struct: columnsToStruct(req, query.Name+"Params", cols),
-			}}
+			gq.Args = []QueryValue{
+				{
+					Emit:   true,
+					Name:   "arg",
+					Struct: columnsToStruct(req, query.Name+"Params", cols),
+				},
+			}
 		} else {
 			args := make([]QueryValue, 0, len(query.Params))
 			for _, p := range query.Params {
@@ -959,6 +1059,10 @@ func buildQueryTree(ctx *pyTmplCtx, i *importer, source string) *pyast.Node {
 					poet.Return(exec),
 				)
 				f.Returns = typeRefNode("sqlalchemy", "engine", "Result")
+			case ":copyfrom":
+				// For copyfrom, use executemany for batch inserts
+				f.Body = append(f.Body, q.BuildCopyFromBody(false)...)
+				f.Returns = poet.Name("int")
 			default:
 				panic("unknown cmd " + q.Cmd)
 			}
@@ -1052,6 +1156,10 @@ func buildQueryTree(ctx *pyTmplCtx, i *importer, source string) *pyast.Node {
 					poet.Return(poet.Await(exec)),
 				)
 				f.Returns = typeRefNode("sqlalchemy", "engine", "Result")
+			case ":copyfrom":
+				// For async copyfrom, use executemany for batch inserts
+				f.Body = append(f.Body, q.BuildCopyFromBody(true)...)
+				f.Returns = poet.Name("int")
 			default:
 				panic("unknown cmd " + q.Cmd)
 			}
