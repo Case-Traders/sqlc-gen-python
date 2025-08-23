@@ -5,15 +5,13 @@ plugins:
       url: file://../../../../bin/sqlc-gen-python.wasm
       sha256: "9aedc973afcc3c089934aaf509843a761e21ac92a4ce34d7a4ba3acebfb49bf0"
 sql:
-  - schema: schema.sql
-    queries: query.sql
+  - schema: "schema.sql"
+    queries: "query.sql"
     engine: postgresql
     codegen:
-      - plugin: py
-        out: db
+      - out: python
+        plugin: py
         options:
-          package: db
+          package: copyfrom
           emit_sync_querier: true
           emit_async_querier: true
-          emit_str_enum: true
-

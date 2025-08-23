@@ -161,6 +161,13 @@ func (i *importer) queryImportSpecs(fileName string) (map[string]importSpec, map
 				std["typing.AsyncIterator"] = importSpec{Module: "typing", Name: "AsyncIterator"}
 			}
 		}
+		if q.Cmd == ":copyfrom" {
+			std["typing.List"] = importSpec{Module: "typing", Name: "List"}
+			// Add Any if non-struct args
+			if !(len(q.Args) == 1 && q.Args[0].IsStruct()) {
+				std["typing.Any"] = importSpec{Module: "typing", Name: "Any"}
+			}
+		}
 		queryValueModelImports(q.Ret)
 		for _, qv := range q.Args {
 			queryValueModelImports(qv)
