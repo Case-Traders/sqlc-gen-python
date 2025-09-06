@@ -76,3 +76,49 @@ class Status(str, enum.Enum):
     OPEN = "op!en"
     CLOSED = "clo@sed"
 ```
+
+### Bulk Inserts with `:copyfrom`
+
+Use the `:copyfrom` command to generate batch insert methods that leverage SQLAlchemy’s executemany behavior via `Connection.execute()` with a list of parameter mappings.
+
+SQL (example):
+
+```sql
+-- name: CreateUsersBatch :copyfrom
+INSERT INTO users (email, name) VALUES ($1, $2);
+```
+
+Generated methods:
+
+```py
+def create_users_batch(self, arg_list: List[Any]) -> int
+async def create_users_batch(self, arg_list: List[Any]) -> int
+```
+
+Call with a list of dicts using positional parameter keys `p1..pN` (the generator converts `$1`/`@name` to `:pN`):
+
+```py
+rows = [
+    {"p1": "a@example.com", "p2": "Alice"},
+    {"p1": "b@example.com", "p2": "Bob"},
+]
+count = queries.create_users_batch(rows)  # returns affected rowcount (int)
+```
+
+When a typed params struct is emitted (e.g., many parameters or config thresholds), the method accepts `List[<QueryName>Params]`. The generator converts items to dicts internally:
+
+```py
+@dataclasses.dataclass()
+class CreateUsersWithDetailsParams:
+    email: str
+    name: str
+    bio: Optional[str]
+    age: Optional[int]
+    active: Optional[bool]
+
+count = queries.create_users_with_details([
+    CreateUsersWithDetailsParams("a@example.com", "Alice", None, None, True),
+])
+```
+
+Implementation note: sync and async use `conn.execute(sqlalchemy.text(SQL), list_of_dicts)` and `await async_conn.execute(...)` respectively; SQLAlchemy performs efficient batch inserts under the hood.

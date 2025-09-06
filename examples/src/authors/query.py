@@ -58,7 +58,7 @@ class Querier:
         )
 
     def create_authors_batch(self, arg_list: List[Any]) -> int:
-        result = self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS_BATCH), arg_list)
+        result = self._conn.execute(sqlalchemy.text(CREATE_AUTHORS_BATCH), arg_list)
         return result.rowcount
 
     def delete_author(self, *, id: int) -> None:
@@ -99,7 +99,7 @@ class AsyncQuerier:
         )
 
     async def create_authors_batch(self, arg_list: List[Any]) -> int:
-        result = await self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS_BATCH), arg_list)
+        result = await self._conn.execute(sqlalchemy.text(CREATE_AUTHORS_BATCH), arg_list)
         return result.rowcount
 
     async def delete_author(self, *, id: int) -> None:
