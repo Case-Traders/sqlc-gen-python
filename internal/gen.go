@@ -225,7 +225,7 @@ func (q Query) BuildCopyFromBody(isAsync bool) []*pyast.Node {
 	})
 
 	execCall := poet.Node(&pyast.Call{
-		Func: poet.Attribute(poet.Name("self._conn"), "executemany"),
+		Func: poet.Attribute(poet.Name("self._conn"), "execute"),
 		Args: []*pyast.Node{
 			sqlText,
 			poet.Name(dataVar),

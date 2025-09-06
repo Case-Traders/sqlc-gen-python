@@ -65,11 +65,11 @@ class Querier:
         )
 
     def create_authors(self, arg_list: List[Any]) -> int:
-        result = self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS), arg_list)
+        result = self._conn.execute(sqlalchemy.text(CREATE_AUTHORS), arg_list)
         return result.rowcount
 
     def create_authors_named(self, arg_list: List[Any]) -> int:
-        result = self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS_NAMED), arg_list)
+        result = self._conn.execute(sqlalchemy.text(CREATE_AUTHORS_NAMED), arg_list)
         return result.rowcount
 
     def create_user(self, *, email: str, name: str) -> Optional[models.User]:
@@ -87,7 +87,7 @@ class Querier:
         )
 
     def create_users_batch(self, arg_list: List[Any]) -> int:
-        result = self._conn.executemany(sqlalchemy.text(CREATE_USERS_BATCH), arg_list)
+        result = self._conn.execute(sqlalchemy.text(CREATE_USERS_BATCH), arg_list)
         return result.rowcount
 
     def create_users_with_details(self, arg_list: List[CreateUsersWithDetailsParams]) -> int:
@@ -100,7 +100,7 @@ class Querier:
                 "p4": item.age,
                 "p5": item.active,
             })
-        result = self._conn.executemany(sqlalchemy.text(CREATE_USERS_WITH_DETAILS), data)
+        result = self._conn.execute(sqlalchemy.text(CREATE_USERS_WITH_DETAILS), data)
         return result.rowcount
 
 
@@ -119,11 +119,11 @@ class AsyncQuerier:
         )
 
     async def create_authors(self, arg_list: List[Any]) -> int:
-        result = await self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS), arg_list)
+        result = await self._conn.execute(sqlalchemy.text(CREATE_AUTHORS), arg_list)
         return result.rowcount
 
     async def create_authors_named(self, arg_list: List[Any]) -> int:
-        result = await self._conn.executemany(sqlalchemy.text(CREATE_AUTHORS_NAMED), arg_list)
+        result = await self._conn.execute(sqlalchemy.text(CREATE_AUTHORS_NAMED), arg_list)
         return result.rowcount
 
     async def create_user(self, *, email: str, name: str) -> Optional[models.User]:
@@ -141,7 +141,7 @@ class AsyncQuerier:
         )
 
     async def create_users_batch(self, arg_list: List[Any]) -> int:
-        result = await self._conn.executemany(sqlalchemy.text(CREATE_USERS_BATCH), arg_list)
+        result = await self._conn.execute(sqlalchemy.text(CREATE_USERS_BATCH), arg_list)
         return result.rowcount
 
     async def create_users_with_details(self, arg_list: List[CreateUsersWithDetailsParams]) -> int:
@@ -154,5 +154,5 @@ class AsyncQuerier:
                 "p4": item.age,
                 "p5": item.active,
             })
-        result = await self._conn.executemany(sqlalchemy.text(CREATE_USERS_WITH_DETAILS), data)
+        result = await self._conn.execute(sqlalchemy.text(CREATE_USERS_WITH_DETAILS), data)
         return result.rowcount
