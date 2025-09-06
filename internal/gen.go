@@ -1060,7 +1060,6 @@ func buildQueryTree(ctx *pyTmplCtx, i *importer, source string) *pyast.Node {
 				)
 				f.Returns = typeRefNode("sqlalchemy", "engine", "Result")
 			case ":copyfrom":
-				// For copyfrom, use executemany for batch inserts
 				f.Body = append(f.Body, q.BuildCopyFromBody(false)...)
 				f.Returns = poet.Name("int")
 			default:
@@ -1157,7 +1156,6 @@ func buildQueryTree(ctx *pyTmplCtx, i *importer, source string) *pyast.Node {
 				)
 				f.Returns = typeRefNode("sqlalchemy", "engine", "Result")
 			case ":copyfrom":
-				// For async copyfrom, use executemany for batch inserts
 				f.Body = append(f.Body, q.BuildCopyFromBody(true)...)
 				f.Returns = poet.Name("int")
 			default:
