@@ -49,9 +49,10 @@ func (t pyType) Annotation() *pyast.Node {
 }
 
 type Field struct {
-	Name    string
-	Type    pyType
-	Comment string
+	Name        string
+	Type        pyType
+	Comment     string
+	ParamNumber int32
 }
 
 type Struct struct {
@@ -256,8 +257,12 @@ func (q Query) buildStructToDictList(sourceVar, targetVar string) []*pyast.Node 
 	loopVar := "item"
 	dict := &pyast.Dict{}
 	for i, field := range q.Args[0].Struct.Fields {
-		paramName := fmt.Sprintf("p%v", i+1)
-		dict.Keys = append(dict.Keys, poet.Constant(paramName))
+		paramNumber := field.ParamNumber
+		if paramNumber == 0 {
+			paramNumber = int32(i + 1)
+		}
+
+		dict.Keys = append(dict.Keys, poet.Constant(fmt.Sprintf("p%v", paramNumber)))
 		dict.Values = append(dict.Values, poet.Attribute(poet.Name(loopVar), field.Name))
 	}
 
@@ -444,8 +449,9 @@ func columnsToStruct(req *plugin.GenerateRequest, name string, columns []pyColum
 			fieldName = fmt.Sprintf("%s_%d", fieldName, suffix)
 		}
 		gs.Fields = append(gs.Fields, Field{
-			Name: fieldName,
-			Type: makePyType(req, c.Column),
+			Name:        fieldName,
+			Type:        makePyType(req, c.Column),
+			ParamNumber: c.id,
 		})
 		seen[colName]++
 	}

@@ -15,3 +15,6 @@ INSERT INTO users (email, name) VALUES (@email, @name);
 
 -- name: CreateUsersWithDetails :copyfrom
 INSERT INTO users (email, name, bio, age, active) VALUES ($1, $2, $3, $4, $5);
+
+-- name: CreateUsersShuffled :copyfrom
+INSERT INTO users (email, name, bio, age, active) VALUES ($2, $1, $3, $4, $5);
