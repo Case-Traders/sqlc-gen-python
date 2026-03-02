@@ -1,12 +1,13 @@
 { pkgs, ... }:
 
 {
-  packages = [
-    pkgs.go
-    pkgs.git
-    pkgs.govulncheck
-    pkgs.gopls
-    pkgs.golint
-    pkgs.python311
+  packages = with pkgs; [
+    go
+    git
+    govulncheck
+    gopls
+    golint
+    python311
+    sqlc
   ];
 }
