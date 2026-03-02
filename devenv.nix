@@ -1,7 +1,6 @@
 { pkgs, ... }:
 
 {
-  # https://devenv.sh/packages/
   packages = [
     pkgs.go
     pkgs.git
