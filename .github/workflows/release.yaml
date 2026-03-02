@@ -1,0 +1,40 @@
+name: Release Python Plugin WASM
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build WASM
+        run: make all
+      - name: Compute SHA256
+        id: sha
+        run: |
+          HASH=$(shasum -a 256 bin/sqlc-gen-python.wasm | cut -d ' ' -f1)
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Create Release & Upload Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/sqlc-gen-python.wasm
+          body: |
+            ${{ github.ref_name }}
+
+            Configuration example:
+
+            ```yaml
+            plugins:
+              - name: py
+                wasm:
+                  url: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/sqlc-gen-python_${{ github.ref_name }}.wasm
+                  sha256: ${{ steps.sha.outputs.hash }}
